@@ -1,6 +1,5 @@
 package com.bot.telegrambotthink.service;
 
-import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,12 +10,13 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 
 @Slf4j
@@ -29,7 +29,8 @@ public class AppBot extends TelegramLongPollingBot {
 
     private final String INFO_LABEL = "Для чего бот?";
     private final String ACCESS_LABEL = "Добавить токен";
-
+    private final String POTFEL = "Портфель";
+    private final String CURRENCY = "Валюта";
 
     @Override
     public String getBotUsername() {
@@ -47,11 +48,11 @@ public class AppBot extends TelegramLongPollingBot {
             String message_text = update.getMessage().getText();
             String chat_id = update.getMessage().getChatId().toString();
             try {
-                    SendMessage message = returnCommandResponse(message_text, update.getMessage().getFrom());
-                    message.enableHtml(true);
-                    message.setParseMode(ParseMode.HTML);
-                    message.setChatId(chat_id);
-                    execute(message);
+                SendMessage message = returnCommandResponse(message_text, update.getMessage().getFrom());
+                message.enableHtml(true);
+                message.setParseMode(ParseMode.HTML);
+                message.setChatId(chat_id);
+                execute(message);
             } catch (TelegramApiException e) {
                 log.error("", e);
                 SendMessage message = notFoundCommand();
@@ -76,7 +77,21 @@ public class AppBot extends TelegramLongPollingBot {
         if(text.equals(COMMANDS.START.getCommand())){ return  startCommamd(user.getFirstName()); }
         if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommamd(); }
         if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommamd(); }
+        if(text.equals(POTFEL)){ return  portfelCommamd(); }
+        if(text.equals(CURRENCY)){ return  currencyCommamd(); }
         return notFoundCommand();
+    }
+
+    private SendMessage portfelCommamd(){
+        SendMessage message = new SendMessage();
+        message.setText("Раздел в разработке");
+        return message;
+    }
+
+    private  SendMessage currencyCommamd(){
+        SendMessage message = new SendMessage();
+        message.setText("Раздел в разработке");
+        return message;
     }
 
     private SendMessage infoCommamd() {
@@ -96,10 +111,12 @@ public class AppBot extends TelegramLongPollingBot {
     private SendMessage tokenCommamd() {
         SendMessage message = new SendMessage();
         try {
-
+            log.info("Создаём подключение... ");
             message.setText("Подключились к Tinkoff Инвестиции");
+            message.setReplyMarkup(customKeyboard());
             return message;
-        }catch (Exception e){
+        } catch (Exception ex) {
+            log.error("Что-то пошло не так.", ex);
             message.setText("Не удалось подключится к Tinkoff Инвестиции. Проверьте токен или попробуйте позже");
             return message;
         }
@@ -110,6 +127,19 @@ public class AppBot extends TelegramLongPollingBot {
         message.setText("Вы вели не корректную команду");
         message.setReplyMarkup(getKeyboard());
         return  message;
+    }
+
+    public ReplyKeyboardMarkup customKeyboard() {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboard = new ArrayList<>();
+        KeyboardRow row = new KeyboardRow();
+        row.add("Портфель");
+        row.add("Валюта");
+        keyboard.add(row);
+        row = new KeyboardRow();
+        keyboard.add(row);
+        keyboardMarkup.setKeyboard(keyboard);
+        return  keyboardMarkup;
     }
 
     private InlineKeyboardMarkup getKeyboard(){
