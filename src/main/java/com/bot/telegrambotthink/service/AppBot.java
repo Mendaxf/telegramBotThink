@@ -14,9 +14,14 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import ru.tinkoff.invest.openapi.OpenApi;
+import ru.tinkoff.invest.openapi.model.rest.Portfolio;
+import ru.tinkoff.invest.openapi.model.rest.PortfolioPosition;
+import ru.tinkoff.invest.openapi.okhttp.OkHttpOpenApi;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 @Slf4j
@@ -27,10 +32,13 @@ public class AppBot extends TelegramLongPollingBot {
     @Autowired
     private TinkConfig tinkConfig;
 
+    private OpenApi api;
+
     private final String INFO_LABEL = "Для чего бот?";
     private final String ACCESS_LABEL = "Добавить токен";
     private final String POTFEL = "Портфель";
     private final String CURRENCY = "Валюта";
+
 
     @Override
     public String getBotUsername() {
@@ -73,7 +81,7 @@ public class AppBot extends TelegramLongPollingBot {
 
     }
 
-    private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException{
+    private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException, ExecutionException, InterruptedException {
         if(text.equals(COMMANDS.START.getCommand())){ return  startCommamd(user.getFirstName()); }
         if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommamd(); }
         if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommamd(); }
@@ -82,9 +90,16 @@ public class AppBot extends TelegramLongPollingBot {
         return notFoundCommand();
     }
 
-    private SendMessage portfelCommamd(){
+    private SendMessage portfelCommamd() throws ExecutionException, InterruptedException {
         SendMessage message = new SendMessage();
-        message.setText("Раздел в разработке");
+        String msg = "В вашем портфеле:\n";
+        Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
+        log.info(portfolio.toString());
+        for (PortfolioPosition p: portfolio.getPositions()) {
+            msg +=  p.getName() + " tiket " + p.getTicker() +"\n"+
+                    " в колличестве " + p.getBalance().doubleValue() +"\n";
+        }
+                    message.setText(msg);
         return message;
     }
 
@@ -112,6 +127,7 @@ public class AppBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         try {
             log.info("Создаём подключение... ");
+            api = new OkHttpOpenApi(tinkConfig.getTtoken(),false);
             message.setText("Подключились к Tinkoff Инвестиции");
             message.setReplyMarkup(customKeyboard());
             return message;
