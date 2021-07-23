@@ -35,9 +35,9 @@ public class AppBot extends TelegramLongPollingBot {
     private OpenApi api;
 
     private final String INFO_LABEL = "Для чего бот?";
-    private final String ACCESS_LABEL = "Добавить токен";
+    private final String ACCESS_LABEL = "Запустить";
     private final String POTFEL = "Портфель";
-    private final String CURRENCY = "Валюта";
+    private final String CURRENCY = "Котировка цен";
 
 
     @Override
@@ -78,11 +78,10 @@ public class AppBot extends TelegramLongPollingBot {
                 log.error("", e);
             }
         }
-
     }
 
     private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException, ExecutionException, InterruptedException {
-        if(text.equals(COMMANDS.START.getCommand())){ return  startCommamd(user.getFirstName()); }
+        if(text.equals(COMMANDS.START.getCommand())){ return  startCommamd(user); }
         if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommamd(); }
         if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommamd(); }
         if(text.equals(POTFEL)){ return  portfelCommamd(); }
@@ -99,7 +98,7 @@ public class AppBot extends TelegramLongPollingBot {
             msg +=  p.getName() + " tiket " + p.getTicker() +"\n"+
                     " в колличестве " + p.getBalance().doubleValue() +"\n";
         }
-                    message.setText(msg);
+        message.setText(msg);
         return message;
     }
 
@@ -111,14 +110,14 @@ public class AppBot extends TelegramLongPollingBot {
 
     private SendMessage infoCommamd() {
         SendMessage message = new SendMessage();
-        message.setText("Бот позволяет отслеживать ценные бумаги");
+        message.setText("Бот для инфорирования по порфелю, отслеживает цены. Бот использует OpenAPI Тинькофф инвестиции");
         message.setReplyMarkup(getKeyboard());
         return message;
     }
 
-    private SendMessage startCommamd(String firstName) {
+    private SendMessage startCommamd(User usr) {
         SendMessage message = new SendMessage();
-        message.setText("Привет!"+ firstName + " выбери нужную команду");
+        message.setText("Привет!"+ (usr.getFirstName() != null ? usr.getFirstName() : usr.getUserName()) + " выбери нужную команду: ");
         message.setReplyMarkup(getKeyboard());
         return message;
     }
@@ -149,8 +148,8 @@ public class AppBot extends TelegramLongPollingBot {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
         KeyboardRow row = new KeyboardRow();
-        row.add("Портфель");
-        row.add("Валюта");
+        row.add(POTFEL);
+        row.add(CURRENCY);
         keyboard.add(row);
         row = new KeyboardRow();
         keyboard.add(row);
