@@ -19,6 +19,8 @@ import ru.tinkoff.invest.openapi.model.rest.Portfolio;
 import ru.tinkoff.invest.openapi.model.rest.PortfolioPosition;
 import ru.tinkoff.invest.openapi.okhttp.OkHttpOpenApi;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -90,17 +92,28 @@ public class AppBot extends TelegramLongPollingBot {
     }
 
     private SendMessage portfelCommamd() throws ExecutionException, InterruptedException {
+        LocalDateTime dt = LocalDateTime.now();
         SendMessage message = new SendMessage();
         String msg = "В вашем портфеле:\n";
         Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
         log.info(portfolio.toString());
         for (PortfolioPosition p: portfolio.getPositions()) {
             msg +=  p.getName() + " tiket " + p.getTicker() +"\n"+
-                    " в колличестве " + p.getBalance().doubleValue() +"\n";
+                    " в колличестве " + p.getBalance().doubleValue() +".\n" +
+                    "На текущий период "+dt.format(DateTimeFormatter.ISO_LOCAL_TIME)+" цена " +
+                    plusOrMinus(p.getExpectedYield().getValue().toString())+" на пунктов "+
+                    p.getExpectedYield().getValue()+"\n";
         }
         message.setText(msg);
         return message;
     }
+
+    private String plusOrMinus(String number){
+        if (number.contains("-"))
+            return "упала &#11015 ";
+        return "выросла &#11014 ";
+    }
+
 
     private  SendMessage currencyCommamd(){
         SendMessage message = new SendMessage();
