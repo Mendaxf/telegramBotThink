@@ -21,6 +21,7 @@ import ru.tinkoff.invest.openapi.okhttp.OkHttpOpenApi;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -39,7 +40,7 @@ public class AppBot extends TelegramLongPollingBot {
     private final String INFO_LABEL = "Для чего бот?";
     private final String ACCESS_LABEL = "Запустить";
     private final String POTFEL = "Портфель";
-    private final String CURRENCY = "Котировка цен";
+    private final String CURRENCY = "Узнать изменение цен по портфелю";
 
 
     @Override
@@ -83,24 +84,24 @@ public class AppBot extends TelegramLongPollingBot {
     }
 
     private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException, ExecutionException, InterruptedException {
-        if(text.equals(COMMANDS.START.getCommand())){ return  startCommamd(user); }
-        if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommamd(); }
-        if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommamd(); }
-        if(text.equals(POTFEL)){ return  portfelCommamd(); }
-        if(text.equals(CURRENCY)){ return  currencyCommamd(); }
+        if(text.equals(COMMANDS.START.getCommand())){ return  startCommand(user); }
+        if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommand(); }
+        if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommand(); }
+        if(text.equals(POTFEL)){ return  portfelCommand(); }
+        if(text.equals(CURRENCY)){ return  currencyCommand(); }
         return notFoundCommand();
     }
 
-    private SendMessage portfelCommamd() throws ExecutionException, InterruptedException {
+    private SendMessage portfelCommand() throws ExecutionException, InterruptedException {
         LocalDateTime dt = LocalDateTime.now();
         SendMessage message = new SendMessage();
         String msg = "В вашем портфеле:\n";
         Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
         log.info(portfolio.toString());
         for (PortfolioPosition p: portfolio.getPositions()) {
-            msg +=  p.getName() + " tiket " + p.getTicker() +"\n"+
-                    " в колличестве " + p.getBalance().doubleValue() +".\n" +
-                    "На текущий период "+dt.format(DateTimeFormatter.ISO_LOCAL_TIME)+" цена " +
+            msg +=  p.getName() + " ticket: " + p.getTicker() +"\n"+
+                    "в колличестве " + p.getBalance().doubleValue() +".\n" +
+                    "Время: "+dt.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))+" цена " +
                     plusOrMinus(p.getExpectedYield().getValue().toString())+" на пунктов "+
                     p.getExpectedYield().getValue()+"\n";
         }
@@ -110,32 +111,32 @@ public class AppBot extends TelegramLongPollingBot {
 
     private String plusOrMinus(String number){
         if (number.contains("-"))
-            return "упала &#11015 ";
-        return "выросла &#11014 ";
+            return "&#11015 ";
+        return "&#11014 ";
     }
 
 
-    private  SendMessage currencyCommamd(){
+    private  SendMessage currencyCommand(){
         SendMessage message = new SendMessage();
         message.setText("Раздел в разработке");
         return message;
     }
 
-    private SendMessage infoCommamd() {
+    private SendMessage infoCommand() {
         SendMessage message = new SendMessage();
         message.setText("Бот для инфорирования по порфелю, отслеживает цены. Бот использует OpenAPI Тинькофф инвестиции");
         message.setReplyMarkup(getKeyboard());
         return message;
     }
 
-    private SendMessage startCommamd(User usr) {
+    private SendMessage startCommand(User usr) {
         SendMessage message = new SendMessage();
-        message.setText("Привет!"+ (usr.getFirstName() != null ? usr.getFirstName() : usr.getUserName()) + " выбери нужную команду: ");
+        message.setText("Привет! "+ (usr.getFirstName() != null ? usr.getFirstName() : usr.getUserName()) + " выбери нужную команду: ");
         message.setReplyMarkup(getKeyboard());
         return message;
     }
 
-    private SendMessage tokenCommamd() {
+    private SendMessage tokenCommand() {
         SendMessage message = new SendMessage();
         try {
             log.info("Создаём подключение... ");
@@ -152,7 +153,7 @@ public class AppBot extends TelegramLongPollingBot {
 
     private SendMessage notFoundCommand() {
         SendMessage message = new SendMessage();
-        message.setText("Вы вели не корректную команду");
+        message.setText("Вы ввели не корректную команду");
         message.setReplyMarkup(getKeyboard());
         return  message;
     }
@@ -186,7 +187,6 @@ public class AppBot extends TelegramLongPollingBot {
         keyboardButtonsRow1.add(inlineKeyboardButtonAccess);
 
         keyboardButtons.add(keyboardButtonsRow1);
-
         inlineKeyboardMarkup.setKeyboard(keyboardButtons);
 
         return inlineKeyboardMarkup;
