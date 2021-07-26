@@ -21,7 +21,14 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.telegram:telegrambots-spring-boot-starter:5.3.0'
-    implementation 'ru.tinkoff.invest:openapi-java-sdk-java8:0.5.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+
+    implementation group: 'ru.tinkoff.invest', name: 'openapi-java-sdk-java8', version: '0.5.1'
+    implementation group: 'ru.tinkoff.invest', name: 'openapi-java-sdk-core', version: '0.5.1'
+    implementation group: 'ru.tinkoff.invest', name: 'openapi-java-sdk', version: '0.5.1', ext: 'pom'
+
+
 
 
     compileOnly 'org.projectlombok:lombok'
