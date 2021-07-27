@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, Long> {
     String getUsersByUserid();
     String getUsersByToken();
+    User findByUserid(String chatId);
 }

@@ -18,9 +18,14 @@ public class User {
     private Long id;
 
     @Column(name = "UserId", nullable = false)
-    private Long Userid;
+    private String Userid;
 
     @Column(name = "token")
     private String token;
 
+
+    public User(String userid, String Token){
+        this.Userid = userid;
+        this.token = Token;
+    }
 }
