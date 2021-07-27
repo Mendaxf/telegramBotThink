@@ -95,26 +95,22 @@ public class AppBot extends TelegramLongPollingBot {
     private SendMessage portfelCommand() throws ExecutionException, InterruptedException {
         LocalDateTime dt = LocalDateTime.now();
         SendMessage message = new SendMessage();
-        String msg = "В вашем портфеле:\n";
+        String msg = "&#128188 Портфель: \n" +
+                     "&#128338 "+dt.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))+" \r\n";
         Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
         log.info(portfolio.toString());
         for (PortfolioPosition p: portfolio.getPositions()) {
-            msg +=  p.getName() + " ticket: " + p.getTicker() +"\n"+
-                    "в колличестве " + p.getBalance().doubleValue() +".\n" +
-                    "Время: "+dt.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))+" цена " +
-                    plusOrMinus(p.getExpectedYield().getValue().toString())+" на пунктов "+
-                    p.getExpectedYield().getValue()+"\n";
+            msg +=  plusOrMinus(p.getExpectedYield().getValue().toString())+
+                    "<b>"+p.getName() + " (" + p.getTicker() +") </b>"+
+                    p.getBalance().intValue() +"ШТ.\n" +
+                    "Состояние: " + p.getExpectedYield().getValue()+"\n" +
+                    "Стоимость: " + ((p.getAveragePositionPrice().getValue().floatValue() * p.getBalance().intValue()) +
+                    p.getExpectedYield().getValue().floatValue())+getCoin(p.getAveragePositionPrice().getCurrency().toString())+"\n";
+
         }
         message.setText(msg);
         return message;
     }
-
-    private String plusOrMinus(String number){
-        if (number.contains("-"))
-            return "&#11015 ";
-        return "&#11014 ";
-    }
-
 
     private  SendMessage currencyCommand(){
         SendMessage message = new SendMessage();
@@ -151,13 +147,6 @@ public class AppBot extends TelegramLongPollingBot {
         }
     }
 
-    private SendMessage notFoundCommand() {
-        SendMessage message = new SendMessage();
-        message.setText("Вы ввели не корректную команду");
-        message.setReplyMarkup(getKeyboard());
-        return  message;
-    }
-
     public ReplyKeyboardMarkup customKeyboard() {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
@@ -192,4 +181,25 @@ public class AppBot extends TelegramLongPollingBot {
         return inlineKeyboardMarkup;
     }
 
+    private SendMessage notFoundCommand() {
+        SendMessage message = new SendMessage();
+        message.setText("Вы ввели не корректную команду");
+        message.setReplyMarkup(getKeyboard());
+        return  message;
+    }
+
+    private String getCoin(String coin){
+        switch(coin){
+            case "RUB": return "&#8381";
+            case "USD": return "&#36";
+            case "EUR": return "&#8364";
+            default: return coin;
+        }
+    }
+
+    private String plusOrMinus(String number){
+        if (number.contains("-"))
+            return "&#11015 ";
+        return "&#11014 ";
+    }
 }
