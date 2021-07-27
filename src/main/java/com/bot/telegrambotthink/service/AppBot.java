@@ -15,6 +15,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.tinkoff.invest.openapi.OpenApi;
+import ru.tinkoff.invest.openapi.model.rest.MarketInstrument;
+import ru.tinkoff.invest.openapi.model.rest.MarketInstrumentList;
 import ru.tinkoff.invest.openapi.model.rest.Portfolio;
 import ru.tinkoff.invest.openapi.model.rest.PortfolioPosition;
 import ru.tinkoff.invest.openapi.okhttp.OkHttpOpenApi;
@@ -24,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
 
@@ -36,11 +39,13 @@ public class AppBot extends TelegramLongPollingBot {
     private TinkConfig tinkConfig;
 
     private OpenApi api;
+    private boolean search = false;
+
 
     private final String INFO_LABEL = "Для чего бот?";
     private final String ACCESS_LABEL = "Запустить";
     private final String POTFEL = "Портфель";
-    private final String CURRENCY = "Узнать изменение цен по портфелю";
+    private final String CURRENCY = "Маркет\nНайти акции";
 
 
     @Override
@@ -89,7 +94,8 @@ public class AppBot extends TelegramLongPollingBot {
         if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommand(); }
         if(text.equals(POTFEL)){ return  portfelCommand(); }
         if(text.equals(CURRENCY)){ return  currencyCommand(); }
-        return notFoundCommand();
+        if(search) return  currencyCommand1(text);
+        else return notFoundCommand();
     }
 
     private SendMessage portfelCommand() throws ExecutionException, InterruptedException {
@@ -106,21 +112,42 @@ public class AppBot extends TelegramLongPollingBot {
                     "Состояние: " + p.getExpectedYield().getValue()+"\n" +
                     "Стоимость: " + ((p.getAveragePositionPrice().getValue().floatValue() * p.getBalance().intValue()) +
                     p.getExpectedYield().getValue().floatValue())+getCoin(p.getAveragePositionPrice().getCurrency().toString())+"\n";
-
         }
         message.setText(msg);
         return message;
     }
 
+
     private  SendMessage currencyCommand(){
         SendMessage message = new SendMessage();
-        message.setText("Раздел в разработке");
+        search = true;
+        message.setText("Введите тикет для поиска");
         return message;
+    }
+
+    private  SendMessage currencyCommand1(String tiket){
+        SendMessage message = new SendMessage();
+        search = false;
+        try{
+            log.info(api.getMarketContext().searchMarketInstrumentsByTicker(tiket.toUpperCase(Locale.ROOT)).get().toString());
+            MarketInstrumentList rest = api.getMarketContext().searchMarketInstrumentsByTicker(tiket).get();
+            String msg = "По тикету: " + tiket + " найдено\n";
+            for(MarketInstrument r : rest.getInstruments()){
+                msg += getType(r.getType().toString()) +"\n<b>" + r.getName() + "(" + r.getTicker() + ")</b>\nдоступно в лоте " + r.getLot() +"\nпокупка в валюте: "+ getCoin(r.getCurrency().toString());
+            }
+            message.setText(msg);
+            log.info(rest.getInstruments().toString());
+            return message;
+        }catch (Exception ex){
+            message.setText("Не корректная команда");
+            return message;
+        }
+
     }
 
     private SendMessage infoCommand() {
         SendMessage message = new SendMessage();
-        message.setText("Бот для инфорирования по порфелю, отслеживает цены. Бот использует OpenAPI Тинькофф инвестиции");
+        message.setText("Бот для сбора информации о активах в порфеле, поиск активов по тикету. Бот использует OpenAPI Тинькофф инвестиции");
         message.setReplyMarkup(getKeyboard());
         return message;
     }
@@ -147,7 +174,7 @@ public class AppBot extends TelegramLongPollingBot {
         }
     }
 
-    public ReplyKeyboardMarkup customKeyboard() {
+    private ReplyKeyboardMarkup customKeyboard() {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
         KeyboardRow row = new KeyboardRow();
@@ -197,6 +224,13 @@ public class AppBot extends TelegramLongPollingBot {
         }
     }
 
+    private String getType(String type){
+        switch(type){
+            case "Stock": return "Акции&#128200";
+            case "Etf": return "Фонд";
+            default: return type;
+        }
+    }
     private String plusOrMinus(String number){
         if (number.contains("-"))
             return "&#11015 ";
