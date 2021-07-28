@@ -21,13 +21,13 @@ import ru.tinkoff.invest.openapi.model.rest.Portfolio;
 import ru.tinkoff.invest.openapi.model.rest.PortfolioPosition;
 import ru.tinkoff.invest.openapi.okhttp.OkHttpOpenApi;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutionException;
 
 
 @Slf4j
@@ -38,15 +38,12 @@ public class AppBot extends TelegramLongPollingBot {
     @Autowired
     private TinkConfig tinkConfig;
 
-    private OpenApi api;
     private boolean search = false;
 
-
     private final String INFO_LABEL = "Для чего бот?";
-    private final String ACCESS_LABEL = "Запустить";
+    private final String ACCESS_LABEL = "Запустить(Передать токен)";
     private final String POTFEL = "Портфель";
-    private final String CURRENCY = "Маркет\nНайти акции";
-
+    private final String CURRENCY = "Маркет. Найти акции";
 
     @Override
     public String getBotUsername() {
@@ -88,33 +85,42 @@ public class AppBot extends TelegramLongPollingBot {
         }
     }
 
-    private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException, ExecutionException, InterruptedException {
+    private SendMessage returnCommandResponse(String text, User user) throws TelegramApiException,IOException {
         if(text.equals(COMMANDS.START.getCommand())){ return  startCommand(user); }
         if(text.equals(COMMANDS.INFO.getCommand())){ return  infoCommand(); }
         if(text.equals(COMMANDS.ACCESS.getCommand())){ return  tokenCommand(); }
         if(text.equals(POTFEL)){ return  portfelCommand(); }
         if(text.equals(CURRENCY)){ return  currencyCommand(); }
-        if(search) return  currencyCommand1(text);
+
+        if(tinkConfig.getTtoken().isEmpty()) return tokenCommandTransmission(text);
+        else if(search) return currencyCommandSearch(text);
         else return notFoundCommand();
+
     }
 
-    private SendMessage portfelCommand() throws ExecutionException, InterruptedException {
-        LocalDateTime dt = LocalDateTime.now();
+    private SendMessage portfelCommand(){
         SendMessage message = new SendMessage();
-        String msg = "&#128188 Портфель: \n" +
-                     "&#128338 "+dt.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))+" \r\n";
-        Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
-        log.info(portfolio.toString());
-        for (PortfolioPosition p: portfolio.getPositions()) {
-            msg +=  plusOrMinus(p.getExpectedYield().getValue().toString())+
-                    "<b>"+p.getName() + " (" + p.getTicker() +") </b>"+
-                    p.getBalance().intValue() +"ШТ.\n" +
-                    "Состояние: " + p.getExpectedYield().getValue()+"\n" +
-                    "Стоимость: " + ((p.getAveragePositionPrice().getValue().floatValue() * p.getBalance().intValue()) +
-                    p.getExpectedYield().getValue().floatValue())+getCoin(p.getAveragePositionPrice().getCurrency().toString())+"\n";
+        try(OpenApi api = new OkHttpOpenApi(tinkConfig.getTtoken(),false)){
+            LocalDateTime dt = LocalDateTime.now();
+            String msg = "&#128188 Портфель: \n" +
+                    "&#128338 "+dt.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))+" \r\n";
+            Portfolio portfolio = api.getPortfolioContext().getPortfolio(null).get();
+            log.info(portfolio.toString());
+            for (PortfolioPosition p: portfolio.getPositions()) {
+                msg +=  plusOrMinus(p.getExpectedYield().getValue().toString())+
+                        "<b>"+p.getName() + " (" + p.getTicker() +") </b>"+
+                        p.getBalance().intValue() +"ШТ.\n" +
+                        "Состояние: " + p.getExpectedYield().getValue()+"\n" +
+                        "Стоимость: " + ((p.getAveragePositionPrice().getValue().floatValue() * p.getBalance().intValue()) +
+                        p.getExpectedYield().getValue().floatValue())+getCoin(p.getAveragePositionPrice().getCurrency().toString())+"\n";
+            }
+            message.setText(msg);
+            return message;
+        }catch(Exception ex){
+            log.info(ex.toString());
+            message.setText("Не удалось получить информацию по портфелю, пожалуйста проверте токен или повторити команду познее");
+            return  message;
         }
-        message.setText(msg);
-        return message;
     }
 
 
@@ -125,10 +131,10 @@ public class AppBot extends TelegramLongPollingBot {
         return message;
     }
 
-    private  SendMessage currencyCommand1(String tiket){
+    private  SendMessage currencyCommandSearch(String tiket){
         SendMessage message = new SendMessage();
         search = false;
-        try{
+        try(OpenApi api = new OkHttpOpenApi(tinkConfig.getTtoken(),false)){
             log.info(api.getMarketContext().searchMarketInstrumentsByTicker(tiket.toUpperCase(Locale.ROOT)).get().toString());
             MarketInstrumentList rest = api.getMarketContext().searchMarketInstrumentsByTicker(tiket).get();
             String msg = "По тикету: " + tiket + " найдено\n";
@@ -138,11 +144,11 @@ public class AppBot extends TelegramLongPollingBot {
             message.setText(msg);
             log.info(rest.getInstruments().toString());
             return message;
-        }catch (Exception ex){
-            message.setText("Не корректная команда");
+        }catch(Exception ex){
+            log.info(ex.toString());
+            message.setText("Не удалось получить информацию по тикету, пожалуйста проверте токен или повторити команду познее");
             return message;
         }
-
     }
 
     private SendMessage infoCommand() {
@@ -162,18 +168,29 @@ public class AppBot extends TelegramLongPollingBot {
     private SendMessage tokenCommand() {
         SendMessage message = new SendMessage();
         try {
-            log.info("Создаём подключение... ");
-            api = new OkHttpOpenApi(tinkConfig.getTtoken(),false);
-            message.setText("Подключились к Tinkoff Инвестиции");
+            log.info("Пользователь скидывает токен... ");
+            message.setText("Ожидаю токен...");
+            return message;
+        } catch (Exception ex) {
+            log.error("Что-то пошло не так.", ex);
+            message.setText("Не удалось получить токен, попробуйте позже");
+            return message;
+        }
+    }
+    private SendMessage tokenCommandTransmission(String text) {
+        SendMessage message = new SendMessage();
+        try {
+            log.info("Получен токен... ");
+            message.setText("Токен получен...");
+            tinkConfig.setTtoken(text);
             message.setReplyMarkup(customKeyboard());
             return message;
         } catch (Exception ex) {
             log.error("Что-то пошло не так.", ex);
-            message.setText("Не удалось подключится к Tinkoff Инвестиции. Проверьте токен или попробуйте позже");
+            message.setText("Не удалось получить токен, попробуйте позже");
             return message;
         }
     }
-
     private ReplyKeyboardMarkup customKeyboard() {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
@@ -186,7 +203,6 @@ public class AppBot extends TelegramLongPollingBot {
         keyboardMarkup.setKeyboard(keyboard);
         return  keyboardMarkup;
     }
-
     private InlineKeyboardMarkup getKeyboard(){
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
@@ -207,14 +223,12 @@ public class AppBot extends TelegramLongPollingBot {
 
         return inlineKeyboardMarkup;
     }
-
     private SendMessage notFoundCommand() {
         SendMessage message = new SendMessage();
         message.setText("Вы ввели не корректную команду");
         message.setReplyMarkup(getKeyboard());
         return  message;
     }
-
     private String getCoin(String coin){
         switch(coin){
             case "RUB": return "&#8381";
@@ -223,7 +237,6 @@ public class AppBot extends TelegramLongPollingBot {
             default: return coin;
         }
     }
-
     private String getType(String type){
         switch(type){
             case "Stock": return "Акции&#128200";
